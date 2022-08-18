@@ -22,47 +22,43 @@ def main():
     else:
         first = sys.argv[1]
         second = sys.argv[2]
-    f1 = open('%s.i18n.json' % first, 'r')
-    f2 = open('%s.i18n.json' % second, 'r')
-    j1 = json.loads(f1.read(), object_pairs_hook=OrderedDict)
-    j2 = json.loads(f2.read(),  object_pairs_hook=OrderedDict)
-    f1.close()
+    with open(f'{first}.i18n.json', 'r') as f1:
+        f2 = open(f'{second}.i18n.json', 'r')
+        j1 = json.loads(f1.read(), object_pairs_hook=OrderedDict)
+        j2 = json.loads(f2.read(),  object_pairs_hook=OrderedDict)
     f2.close()
 
     r2raw = comp_dict(j1, j2)
     r1 = comp_dict(j2, j1)
     r2 = align_dict(j1, r2raw)
 
-    with open('%s.i18n.json' % second,'w',encoding='utf-8') as out:
+    with open(f'{second}.i18n.json', 'w', encoding='utf-8') as out:
         out.write(json.dumps(r2, indent=2, ensure_ascii=False, separators=(',', ': ')))
 
     if inter_add:
-        with open('%s.i18n.json' % first,'w',encoding='utf-8') as out:
+        with open(f'{first}.i18n.json', 'w', encoding='utf-8') as out:
             out.write(json.dumps(r1, indent=2, ensure_ascii=False, separators=(',', ': ')))
 
     print('Done.')
 
 def comp_dict(base, comp):
-    if inter_add:
-        result = OrderedDict(comp)
-    else:
-        result = OrderedDict()
+    result = OrderedDict(comp) if inter_add else OrderedDict()
     for key, value in base.items():
         if key in comp:
             if type(comp[key]) != type(value):
-                print('Type mismatch!! Key=%s; %s %s' % (key, type(comp[key]), type(value)))
-            if type(value) is OrderedDict:
-                result[key] = comp_dict(value, comp[key])
-            else:
-                result[key] = comp[key] 
+                print(f'Type mismatch!! Key={key}; {type(comp[key])} {type(value)}')
+            result[key] = (
+                comp_dict(value, comp[key])
+                if type(value) is OrderedDict
+                else comp[key]
+            )
+
+        elif type(value) is OrderedDict:
+            result[key] = comp_dict(value, OrderedDict())
+        elif sys.version_info[0] == 2:
+            result[key] = f"*_{unicode(value)}"
         else:
-            if type(value) is OrderedDict:
-                result[key] = comp_dict(value, OrderedDict())
-            else:
-                if sys.version_info[0] == 2:
-                    result[key] = "*_%s" % unicode(value)
-                else:
-                    result[key] = "*_%s" % str(value)
+            result[key] = f"*_{str(value)}"
     return result
 
 def align_dict(base, target):
